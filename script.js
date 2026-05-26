@@ -1,33 +1,48 @@
 const words = [
-  "CRISPR",
   "DNA",
   "GENE",
-  "RNA",
+  "CHROMOSOME",
+  "ALLELE",
   "MUTATION",
+  "HEREDITY",
+  "TRAIT",
+  "GENOTYPE",
+  "PHENOTYPE",
+  "CRISPR",
   "GENOME",
+  "RNA",
+  "NUCLEUS",
+  "BIOLOGY",
   "EDITING"
 ];
 
-const gridSize = 10;
+const size = 15;
 const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-let grid = [];
+const grid = [];
 
 // Create empty grid
-for (let i = 0; i < gridSize; i++) {
-  grid[i] = [];
-  for (let j = 0; j < gridSize; j++) {
-    grid[i][j] = "";
+for (let r = 0; r < size; r++) {
+  grid[r] = [];
+  for (let c = 0; c < size; c++) {
+    grid[r][c] = "";
   }
 }
 
-// Place words horizontally
-function placeWords() {
-  words.forEach(word => {
-    let placed = false;
+// Place words
+function placeWord(word) {
 
-    while (!placed) {
-      let row = Math.floor(Math.random() * gridSize);
-      let col = Math.floor(Math.random() * (gridSize - word.length));
+  let placed = false;
+
+  while (!placed) {
+
+    const direction = Math.random() < 0.5 ? "horizontal" : "vertical";
+
+    let row, col;
+
+    if (direction === "horizontal") {
+
+      row = Math.floor(Math.random() * size);
+      col = Math.floor(Math.random() * (size - word.length));
 
       let fits = true;
 
@@ -43,107 +58,167 @@ function placeWords() {
         }
         placed = true;
       }
-    }
-  });
-}
 
-// Fill empty spaces
-function fillGrid() {
-  for (let i = 0; i < gridSize; i++) {
-    for (let j = 0; j < gridSize; j++) {
-      if (grid[i][j] === "") {
-        grid[i][j] = letters[Math.floor(Math.random() * letters.length)];
+    } else {
+
+      row = Math.floor(Math.random() * (size - word.length));
+      col = Math.floor(Math.random() * size);
+
+      let fits = true;
+
+      for (let i = 0; i < word.length; i++) {
+        if (grid[row + i][col] !== "") {
+          fits = false;
+        }
+      }
+
+      if (fits) {
+        for (let i = 0; i < word.length; i++) {
+          grid[row + i][col] = word[i];
+        }
+        placed = true;
       }
     }
   }
 }
 
-placeWords();
-fillGrid();
+words.forEach(placeWord);
 
-const game = document.getElementById("game");
+// Fill empty spots
+for (let r = 0; r < size; r++) {
+  for (let c = 0; c < size; c++) {
 
-let selectedLetters = "";
-let selectedCells = [];
-
-function createGrid() {
-  for (let i = 0; i < gridSize; i++) {
-    for (let j = 0; j < gridSize; j++) {
-
-      const cell = document.createElement("div");
-      cell.classList.add("cell");
-      cell.textContent = grid[i][j];
-
-      cell.dataset.letter = grid[i][j];
-
-      cell.addEventListener("mousedown", () => {
-        selectedLetters = "";
-        selectedCells = [];
-      });
-
-      cell.addEventListener("mouseover", () => {
-        if (event.buttons === 1) {
-
-          selectedLetters += cell.dataset.letter;
-          selectedCells.push(cell);
-
-          cell.classList.add("selected");
-
-          checkWord();
-        }
-      });
-
-      game.appendChild(cell);
+    if (grid[r][c] === "") {
+      grid[r][c] =
+        letters[Math.floor(Math.random() * letters.length)];
     }
   }
 }
 
+const game = document.getElementById("game");
+const wordList = document.getElementById("word-list");
+
+let mouseDown = false;
+let currentWord = "";
+let selectedCells = [];
+let foundWords = [];
+
+// Create board
+for (let r = 0; r < size; r++) {
+
+  for (let c = 0; c < size; c++) {
+
+    const cell = document.createElement("div");
+
+    cell.classList.add("cell");
+    cell.textContent = grid[r][c];
+
+    cell.dataset.letter = grid[r][c];
+
+    // Start drag
+    cell.addEventListener("mousedown", () => {
+
+      mouseDown = true;
+
+      currentWord = "";
+      selectedCells = [];
+
+      clearSelection();
+
+      addLetter(cell);
+    });
+
+    // Dragging
+    cell.addEventListener("mouseover", () => {
+
+      if (mouseDown) {
+        addLetter(cell);
+      }
+    });
+
+    // Stop drag
+    cell.addEventListener("mouseup", () => {
+
+      mouseDown = false;
+
+      checkWord();
+    });
+
+    game.appendChild(cell);
+  }
+}
+
+// Stop drag outside
+document.addEventListener("mouseup", () => {
+  mouseDown = false;
+});
+
+// Add letter
+function addLetter(cell) {
+
+  if (!selectedCells.includes(cell)) {
+
+    currentWord += cell.dataset.letter;
+
+    selectedCells.push(cell);
+
+    cell.classList.add("selected");
+  }
+}
+
+// Check word
 function checkWord() {
 
-  if (words.includes(selectedLetters)) {
+  if (
+    words.includes(currentWord) &&
+    !foundWords.includes(currentWord)
+  ) {
+
+    foundWords.push(currentWord);
 
     selectedCells.forEach(cell => {
       cell.classList.remove("selected");
       cell.classList.add("found");
     });
 
-    const wordElement = document.getElementById(selectedLetters);
+    const wordItem = document.getElementById(currentWord);
 
-    if (wordElement) {
-      wordElement.classList.add("word-found");
+    if (wordItem) {
+      wordItem.classList.add("word-found");
+      wordItem.innerHTML = "✔ " + currentWord;
     }
 
-    words.splice(words.indexOf(selectedLetters), 1);
+    if (foundWords.length === words.length) {
 
-    if (words.length === 0) {
-      document.getElementById("message").textContent =
-        "🎉 You Found All Words!";
+      document.getElementById("message").innerHTML =
+        "🎉 YOU FOUND ALL WORDS!";
     }
 
-    selectedLetters = "";
-    selectedCells = [];
+  } else {
+
+    clearSelection();
   }
+
+  currentWord = "";
+  selectedCells = [];
 }
 
-createGrid();
+// Remove wrong highlight
+function clearSelection() {
 
-// Show word list
-const wordList = document.getElementById("word-list");
+  document.querySelectorAll(".selected").forEach(cell => {
+    cell.classList.remove("selected");
+  });
+}
 
-[
-  "CRISPR",
-  "DNA",
-  "GENE",
-  "RNA",
-  "MUTATION",
-  "GENOME",
-  "EDITING"
-].forEach(word => {
+// Word list
+words.forEach(word => {
 
-  const span = document.createElement("span");
+  const div = document.createElement("div");
 
-  span.textContent = word + " ";
-  span.id = word;
+  div.textContent = word;
 
-  wordList.appendChild(span);
+  div.id = word;
+
+  wordList.appendChild(div);
 });
